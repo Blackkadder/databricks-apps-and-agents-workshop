@@ -1,6 +1,21 @@
 # databricks-apps-and-agents-workshop
 
-## Prerequisites
+## Contents
+This repo contains example Databricks apps and agents. They include:
+
+- Basic Data app
+- Basic mcp server
+- [Databricks API explorer](!https://github.com/databricks-solutions/databricks-api-explorer)
+- Chat Agent
+
+## What are Databricks apps?
+Databricks Apps are the fastest and most secure way to build data and AI applications on the Databricks. Developers can create applications using popular frameworks, serverless deployment and built-in governance. This allows developers to focus on delivering impactful solutions to users without the complexities of infrastructure management.
+
+Databricks apps support python and node.js frameworks for UI and backend (headless) apps, including agents and MCP servers. 
+
+
+
+## Other tools: AI dev kit
 
 Install the [Databricks AI Dev Kit](https://github.com/databricks-solutions/ai-dev-kit) to set up your AI coding environment with the necessary tools and configuration.
 
