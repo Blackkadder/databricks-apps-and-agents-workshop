@@ -1,6 +1,13 @@
 # databricks-apps-and-agents-workshop
 
-## Prerequisites
+This repo contains example Databricks apps and agents. They include:
+
+- Basic Data app
+- Basic mcp server
+- [Databricks API explorer](!https://github.com/databricks-solutions/databricks-api-explorer)
+- Chat Agent
+
+## Other tools: AI dev kit
 
 Install the [Databricks AI Dev Kit](https://github.com/databricks-solutions/ai-dev-kit) to set up your AI coding environment with the necessary tools and configuration.
 
