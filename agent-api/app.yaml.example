@@ -1,0 +1,19 @@
+command:
+  - "python"
+  - "-m"
+  - "uvicorn"
+  - "main:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"
+
+env:
+  - name: LAKEBASE_CONN_STR
+    valueFrom: lakebase-conn-str                    # Secret scope key — see workshop guide Step 2
+  - name: MODEL_NAME
+    value: "databricks-meta-llama-3-3-70b-instruct" # Your Foundation Model API endpoint
+  - name: DATABRICKS_WAREHOUSE_ID
+    value: "<YOUR_WAREHOUSE_ID>"                    # SQL warehouse ID for tool queries
+  - name: MLFLOW_EXPERIMENT_NAME
+    value: "/Shared/agent-workshop-uc"              # Experiment with UC Volume artifact location

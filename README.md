@@ -1,34 +1,55 @@
-# databricks-apps-and-agents-workshop
+# Agent Workshop
 
-## Contents
-This repo contains example Databricks apps and agents. They include:
+An AI agent with conversation memory, tool use, token streaming, and MLflow tracing — deployed as two Databricks Apps.
 
-- Basic Data app
-- Basic mcp server
-- [Databricks API explorer](!https://github.com/databricks-solutions/databricks-api-explorer)
-- Chat Agent
+## Architecture
 
-## What are Databricks apps?
-Databricks Apps are the fastest and most secure way to build data and AI applications on the Databricks. Developers can create applications using popular frameworks, serverless deployment and built-in governance. This allows developers to focus on delivering impactful solutions to users without the complexities of infrastructure management.
-
-Databricks apps support python and node.js frameworks for UI and backend (headless) apps, including agents and MCP servers. 
-
-
-
-## Other tools: AI dev kit
-
-Install the [Databricks AI Dev Kit](https://github.com/databricks-solutions/ai-dev-kit) to set up your AI coding environment with the necessary tools and configuration.
-
-**Mac/Linux:**
-```bash
-bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.sh)
+```
+Frontend App (Chat UI)  →  Agent API App (LangGraph + MLflow)  →  Lakebase (Memory)
+                                       ↓
+                              MLflow Experiment (Traces in UC Volume)
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.ps1 | iex
+## Project Structure
+
+```
+agent-api/              # Agent REST API (Databricks App)
+├── agent.py            # LangGraph agent using create_agent()
+├── tools.py            # SQL query tool for Unity Catalog
+├── system_prompt.md    # Editable system prompt
+├── main.py             # FastAPI server
+├── index.html          # API docs page
+├── app.yaml            # App configuration
+└── requirements.txt
+
+frontend/               # Chat UI (Databricks App)
+├── main.py             # Static file server
+├── static/
+│   ├── index.html      # Chat UI structure
+│   ├── styles.css      # Styles
+│   └── app.js          # Streaming, tool blocks, markdown, threads
+├── app.yaml
+└── requirements.txt
+
+notebooks/              # Development & observability
+├── run_agent.py        # Run agent with full MLflow trace visibility
+└── workshop_guide.py   # Step-by-step setup walkthrough
 ```
 
-The installer sets up configuration for AI coding environments (Claude Code, Cursor, Gemini CLI) and requires:
-- [uv](https://docs.astral.sh/uv/) — Python package manager
-- [Databricks CLI](https://docs.databricks.com/dev-tools/cli/index.html) — Databricks command line interface
+## Quick Start
+
+See `notebooks/workshop_guide.py` for the full setup walkthrough, or:
+
+1. **Set up Lakebase** — create a project, generate native Postgres credentials for the app's SP
+2. **Set up MLflow** — create a UC Volume + experiment with `artifact_location="dbfs:/Volumes/..."`
+3. **Deploy agent-api** — update `app.yaml` with your warehouse ID, deploy as a Databricks App
+4. **Deploy frontend** — update `app.yaml` with the agent-api URL, deploy as a Databricks App
+
+## Features
+
+- **Token streaming** — responses appear word-by-word via Server-Sent Events
+- **Tool calls** — expandable blocks showing SQL queries and results (Cursor-style)
+- **Conversation memory** — persisted to Lakebase (PostgreSQL) via LangGraph checkpointer
+- **MLflow tracing** — full span trees viewable in the Experiments UI
+- **Markdown rendering** — inline code, code blocks, lists, bold/italic
+- **Thread management** — rename, delete, ordered by recent activity
