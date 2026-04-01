@@ -7,18 +7,18 @@
 # MAGIC ## Architecture
 # MAGIC
 # MAGIC ```
-# MAGIC ┌─────────────────┐       ┌──────────────────┐       ┌───────────┐
-# MAGIC │  Frontend App   │──────▶│  Agent API App   │──────▶│ Lakebase  │
-# MAGIC │  (Chat UI)      │       │  (LangGraph +    │       │ (Memory)  │
-# MAGIC │                 │       │   MLflow Tracing) │       │           │
-# MAGIC └─────────────────┘       └──────────────────┘       └───────────┘
-# MAGIC                                    │
-# MAGIC                                    ▼
-# MAGIC                           ┌──────────────────┐
-# MAGIC                           │  MLflow Experiment│
-# MAGIC                           │  (Traces in UC   │
-# MAGIC                           │   Volume)        │
-# MAGIC                           └──────────────────┘
+# MAGIC ┌───────────────┐     ┌────────────────────┐     ┌──────────┐
+# MAGIC │ Frontend App  │────▶│  Agent API App     │────▶│ Lakebase │
+# MAGIC │ (Chat UI)     │     │  (LangGraph +      │     │ (Memory) │
+# MAGIC │               │     │   MLflow Tracing)  │     │          │
+# MAGIC └───────────────┘     └────────────────────┘     └──────────┘
+# MAGIC                                │
+# MAGIC                                ▼
+# MAGIC                       ┌────────────────────┐
+# MAGIC                       │ MLflow Experiment   │
+# MAGIC                       │ (Traces in UC      │
+# MAGIC                       │  Volume)           │
+# MAGIC                       └────────────────────┘
 # MAGIC ```
 # MAGIC
 # MAGIC ## Project Structure
