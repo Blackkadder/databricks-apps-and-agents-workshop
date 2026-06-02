@@ -30,4 +30,3 @@ def query_databricks_sql(query: str) -> str:
 
 
 TOOLS = [query_databricks_sql]
-TOOLS_BY_NAME = {t.name: t for t in TOOLS}

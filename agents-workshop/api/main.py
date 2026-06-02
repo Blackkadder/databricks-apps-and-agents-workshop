@@ -26,11 +26,29 @@ try:
     import mlflow
     mlflow.set_tracking_uri("databricks")
     exp_name = os.environ.get("MLFLOW_EXPERIMENT_NAME")
+    trace_storage = os.environ.get("MLFLOW_TRACE_STORAGE", "volume")
+
     if exp_name:
-        mlflow.set_experiment(exp_name)
-        logging.info("MLflow experiment: %s", exp_name)
+        if trace_storage == "uc_tables":
+            from mlflow.entities.trace_location import UnityCatalog
+            catalog = os.environ["MLFLOW_UC_CATALOG"]
+            schema = os.environ["MLFLOW_UC_SCHEMA"]
+            table_prefix = os.environ.get("MLFLOW_UC_TABLE_PREFIX", "agent_traces")
+            mlflow.set_experiment(
+                experiment_name=exp_name,
+                trace_location=UnityCatalog(
+                    catalog_name=catalog,
+                    schema_name=schema,
+                    table_prefix=table_prefix,
+                ),
+            )
+            logging.info("MLflow tracing → UC Tables: %s.%s.%s*", catalog, schema, table_prefix)
+        else:
+            mlflow.set_experiment(exp_name)
+            logging.info("MLflow experiment (volume): %s", exp_name)
+
     mlflow.langchain.autolog()
-    logging.info("MLflow tracing enabled (tracking_uri=%s)", mlflow.get_tracking_uri())
+    logging.info("MLflow tracing enabled (tracking_uri=%s, storage=%s)", mlflow.get_tracking_uri(), trace_storage)
 except Exception as e:
     logging.info("MLflow tracing not available: %s", e)
 
@@ -38,16 +56,66 @@ _pool: Optional[AsyncConnectionPool] = None
 _graph = None
 
 
+
 def _get_lakebase_conn_str() -> Optional[str]:
-    """Build Lakebase connection string from PG* env vars or LAKEBASE_CONN_STR."""
+    """Return a Lakebase connection string from whichever source is configured."""
+    # Log which PG vars are present to aid debugging
+    pg_vars = {k: ("set" if v else "empty") for k, v in {
+        "PGHOST": os.environ.get("PGHOST"),
+        "PGUSER": os.environ.get("PGUSER"),
+        "PGPASSWORD": os.environ.get("PGPASSWORD"),
+        "PGDATABASE": os.environ.get("PGDATABASE"),
+        "PGPORT": os.environ.get("PGPORT"),
+    }.items()}
+    logging.info("Lakebase env vars: %s", pg_vars)
+
     pghost = os.environ.get("PGHOST")
-    if pghost:
-        user = quote_plus(os.environ["PGUSER"])
-        password = quote_plus(os.environ["PGPASSWORD"])
+    pguser = os.environ.get("PGUSER")
+    pgpassword = os.environ.get("PGPASSWORD")
+
+    if pghost and pguser and pgpassword:
+        # Provisioned Lakebase with static password (legacy)
         database = os.environ.get("PGDATABASE", "databricks_postgres")
         port = os.environ.get("PGPORT", "5432")
-        return f"postgresql://{user}:{password}@{pghost}:{port}/{database}?sslmode=require"
+        return f"postgresql://{quote_plus(pguser)}:{quote_plus(pgpassword)}@{pghost}:{port}/{database}?sslmode=require"
+
+    if pghost and pguser:
+        # Postgres app resource — PGPASSWORD is empty, generate OAuth token
+        endpoint = os.environ.get("LAKEBASE_ENDPOINT")
+        if endpoint:
+            try:
+                from databricks.sdk import WorkspaceClient
+                w = WorkspaceClient()
+                cred = w.api_client.do("POST", "/api/2.0/postgres/credentials", body={"endpoint": endpoint})
+                token = cred.get("token", "")
+                database = os.environ.get("PGDATABASE", "databricks_postgres")
+                port = os.environ.get("PGPORT", "5432")
+                logging.info("Generated Lakebase OAuth token for resource endpoint")
+                return f"postgresql://{quote_plus(pguser)}:{quote_plus(token)}@{pghost}:{port}/{database}?sslmode=require"
+            except Exception as e:
+                logging.warning("Could not generate Lakebase token: %s", e)
+        else:
+            logging.warning("PGHOST/PGUSER set but PGPASSWORD empty and LAKEBASE_ENDPOINT not set")
+
     return os.environ.get("LAKEBASE_CONN_STR")
+
+
+async def _refresh_pool_loop():
+    """Rotate the async connection pool every 45 min to avoid OAuth token expiry."""
+    global _pool
+    while True:
+        await asyncio.sleep(45 * 60)
+        if _pool and os.environ.get("LAKEBASE_ENDPOINT"):
+            new_conn_str = _get_lakebase_conn_str()
+            if new_conn_str:
+                try:
+                    new_pool = AsyncConnectionPool(new_conn_str, open=False, min_size=1, max_size=5)
+                    await asyncio.wait_for(new_pool.open(), timeout=15)
+                    old_pool, _pool = _pool, new_pool
+                    await old_pool.close()
+                    logging.info("Lakebase connection pool rotated with fresh OAuth token")
+                except Exception as e:
+                    logging.warning("Pool rotation failed: %s", e)
 
 
 @asynccontextmanager
@@ -56,31 +124,42 @@ async def lifespan(app: FastAPI):
     conn_str = _get_lakebase_conn_str()
 
     if conn_str:
-        _pool = AsyncConnectionPool(conn_str, open=False, min_size=1, max_size=5)
-        await _pool.open()
+        try:
+            _pool = AsyncConnectionPool(conn_str, open=False, min_size=1, max_size=5)
+            await asyncio.wait_for(_pool.open(), timeout=15)
 
-        # Create thread metadata table for titles
-        async with _pool.connection() as conn:
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS thread_metadata (
-                    thread_id TEXT PRIMARY KEY,
-                    title TEXT,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                )
-            """)
+            async with _pool.connection() as conn:
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS thread_metadata (
+                        thread_id TEXT PRIMARY KEY,
+                        title TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
 
-        saver_conn = psycopg.connect(conn_str, autocommit=True)
-        saver = PostgresSaver(saver_conn)
-        saver.setup()
-        _graph = create_graph(saver)
-        logging.info("Graph created with Lakebase checkpointer")
+            saver_conn = psycopg.connect(conn_str, autocommit=True)
+            saver = PostgresSaver(saver_conn)
+            saver.setup()
+            _graph = create_graph(saver)
+            logging.info("Graph created with Lakebase checkpointer")
+            refresh_task = asyncio.create_task(_refresh_pool_loop())
+        except Exception as e:
+            logging.warning("Lakebase connection failed (%s) — falling back to in-memory checkpointer", e)
+            if _pool:
+                await _pool.close()
+            _pool = None
+            _graph = create_graph(MemorySaver())
+            refresh_task = None
     else:
         _graph = create_graph(MemorySaver())
         logging.info("Graph created with in-memory checkpointer (local dev mode)")
+        refresh_task = None
 
     yield
 
+    if refresh_task:
+        refresh_task.cancel()
     if _pool:
         await _pool.close()
 
