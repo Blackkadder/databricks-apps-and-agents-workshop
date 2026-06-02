@@ -42,6 +42,7 @@ function setHasMessages(has) {
 // ── Thread management ──
 function newChat() {
   currentThreadId = crypto.randomUUID();
+  localStorage.setItem('lastThreadId', currentThreadId);
   threadCache[currentThreadId] = [];
   clearMessages();
   setHasMessages(false);
@@ -52,6 +53,7 @@ function newChat() {
 function loadThread(threadId) {
   if (currentThreadId === threadId) return;
   currentThreadId = threadId;
+  localStorage.setItem('lastThreadId', currentThreadId);
   clearMessages();
   setHasMessages(true);
   updateThreadBadge(threadId);
@@ -98,8 +100,25 @@ function fetchAndCacheHistory(threadId) {
 function refreshThreadList() {
   fetch(API_BASE + '/threads', { credentials: 'include' })
     .then(function(res) { return res.json(); })
-    .then(function(data) { renderThreadList(data.threads || []); })
-    .catch(function(err) { console.error('Failed to fetch threads:', err); });
+    .then(function(data) {
+      var threads = data.threads || [];
+      // Merge server list with locally known threads so sidebar works without Lakebase
+      var serverIds = new Set(threads.map(function(t) { return typeof t === 'string' ? t : t.id; }));
+      Object.keys(threadCache).forEach(function(tid) {
+        if (!serverIds.has(tid)) threads.unshift(tid);
+      });
+      renderThreadList(threads);
+      // On page load (currentThreadId is null), restore the last active thread
+      var savedId = localStorage.getItem('lastThreadId');
+      if (savedId && !currentThreadId) {
+        var exists = threads.some(function(t) { return (typeof t === 'string' ? t : t.id) === savedId; });
+        if (exists) loadThread(savedId);
+      }
+    })
+    .catch(function(err) {
+      console.error('Failed to fetch threads:', err);
+      renderThreadList(Object.keys(threadCache));
+    });
 }
 
 function renderThreadList(threads) {
@@ -246,6 +265,7 @@ function sendMessage() {
 
   if (!currentThreadId) {
     currentThreadId = crypto.randomUUID();
+    localStorage.setItem('lastThreadId', currentThreadId);
     updateThreadBadge(currentThreadId);
   }
 
