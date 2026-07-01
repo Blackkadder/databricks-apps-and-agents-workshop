@@ -4,12 +4,10 @@ turn is scored against the conversation so far, so the metric evolves through th
 thread. 1-5."""
 from mlflow.genai.judges import make_judge
 
-NAME = "conversation_consistency"
-
 
 def build(model: str):
     return make_judge(
-        name=NAME,
+        name="conversation_consistency",
         instructions=(
             "Inspect the multi-turn conversation captured in {{ trace }} — the sequence of user and "
             "assistant messages so far. Judge whether the assistant's MOST RECENT reply is consistent "

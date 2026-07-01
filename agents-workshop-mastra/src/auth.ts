@@ -18,7 +18,7 @@ async function mintM2M(host: string, id: string, secret: string): Promise<{ toke
 }
 
 function mintCLI(): { token: string; ttlMs: number } {
-  const profile = process.env.DATABRICKS_PROFILE ?? 'fe-sandbox-june';
+  const profile = process.env.DATABRICKS_PROFILE ?? 'DEFAULT';
   const out = execFileSync('databricks', ['auth', 'token', '-p', profile], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],

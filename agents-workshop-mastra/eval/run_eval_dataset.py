@@ -32,14 +32,14 @@ def agent(message):
     return {"response": r.choices[0].message.content}
 
 records = [
-    {"inputs": {"message": "What does MLflow do, briefly?"},
-     "expectations": {"expected_facts": ["MLflow is an open-source platform", "it helps manage the machine learning / GenAI lifecycle", "it provides experiment tracking and model/agent evaluation"]}},
-    {"inputs": {"message": "What is Unity Catalog?"},
-     "expectations": {"expected_facts": ["it is Databricks' governance layer for data and AI", "it organizes data into catalogs, schemas, and tables", "it provides access control and lineage"]}},
-    {"inputs": {"message": "What is a skills taxonomy?"},
-     "expectations": {"expected_facts": ["a structured, hierarchical classification of skills", "it standardizes how skills are defined", "it maps skills across roles or content"]}},
-    {"inputs": {"message": "What is MLflow Tracing used for?"},
-     "expectations": {"expected_facts": ["it captures traces/spans of LLM or agent calls", "it records inputs, outputs, latency, and token usage", "it is used for observability and evaluation"]}},
+    {"inputs": {"message": "I want to move from data analyst to ML engineer. Where do I start?"},
+     "expectations": {"expected_facts": ["identify the skill gap between data analyst and ML engineer", "recommend foundational skills such as machine learning fundamentals or Python for ML", "suggest a sequenced learning path", "be concrete about effort or pacing"]}},
+    {"inputs": {"message": "What skills do I need to become a backend developer?"},
+     "expectations": {"expected_facts": ["name specific technical skills such as APIs, databases, or a backend language", "explain why those skills matter for the role", "suggest a logical learning order"]}},
+    {"inputs": {"message": "I have 3 hours a week. Can I learn data engineering in 6 months?"},
+     "expectations": {"expected_facts": ["acknowledge the time constraint", "give an honest assessment of what is achievable in that timeframe", "suggest a realistic scope or adjusted goal"]}},
+    {"inputs": {"message": "What is the difference between data science and machine learning engineering?"},
+     "expectations": {"expected_facts": ["distinguish the roles by responsibility or skill focus", "mention that data scientists focus on analysis and modeling while ML engineers focus on productionizing models", "be concrete and concise"]}},
 ]
 try:
     ds = mlflow.genai.datasets.get_dataset(DS)

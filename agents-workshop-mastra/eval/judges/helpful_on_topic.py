@@ -2,12 +2,10 @@
 addressing the question concisely without inventing facts."""
 from mlflow.genai.scorers import Guidelines
 
-NAME = "helpful_on_topic"
-
 
 def build(model: str):
     return Guidelines(
-        name=NAME,
+        name="helpful_on_topic",
         guidelines="The response must directly address the question, be concise, and not invent facts.",
         model=model,
     )

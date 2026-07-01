@@ -7,7 +7,7 @@ import type { ExportResult } from '@opentelemetry/core';
 import { getToken } from './auth';
 
 // MLflow span type values (set as the mlflow.spanType attribute).
-export const SpanType = { AGENT: 'AGENT', LLM: 'LLM', CHAIN: 'CHAIN', TOOL: 'TOOL' } as const;
+export const SpanType = { AGENT: 'AGENT', LLM: 'LLM', CHAIN: 'CHAIN', TOOL: 'TOOL', CHAT_MODEL: 'CHAT_MODEL' } as const;
 
 let tracer: ReturnType<typeof otelTrace.getTracer> | null = null;
 let provider: NodeTracerProvider | null = null;
