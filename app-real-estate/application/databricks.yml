@@ -1,0 +1,22 @@
+bundle:
+  name: real-estate-intelligence
+
+resources:
+  apps:
+    app:
+      name: "real-estate-intelligence"
+      description: "A governed real-estate intelligence demo powered by AppKit"
+      source_code_path: ./
+
+      # Start the app automatically on deploy.
+      lifecycle:
+        started: true
+      # Uncomment to enable on behalf of user API scopes. Available scopes: sql, genie, files, model-serving
+      # user_api_scopes:
+      #   - sql
+
+targets:
+  default:
+    default: true
+    workspace:
+      host: https://fevm-serverless-stable-s967xa.cloud.databricks.com
