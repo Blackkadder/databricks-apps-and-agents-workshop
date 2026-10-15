@@ -9,6 +9,9 @@ build/
 test-results/
 playwright-report/
 
+# AppKit deployment contract; the repository root ignores generic app.yaml files.
+!app.yaml
+
 # Auto-generated types (endpoint-specific, varies per developer)
 shared/appkit-types/serving.d.ts
 
