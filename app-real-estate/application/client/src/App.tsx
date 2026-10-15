@@ -1,136 +1,28 @@
-import { createBrowserRouter, RouterProvider, NavLink, Outlet } from 'react-router';
-import { useState } from 'react';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  useIsMobile,
-} from '@databricks/appkit-ui/react';
-import { Menu } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { Badge, Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@databricks/appkit-ui/react';
+import { ArrowRight, Bath, BedDouble, Bot, Building2, Database, Home, Layers3, Map, Maximize2, Menu, MessageCircle, RotateCcw, Search, Send, Sparkles, SquareStack } from 'lucide-react';
+import { api, type AdvisorMessage, type Listing, type ListingFilters } from './api.ts';
+const initialFilters:ListingFilters={query:'',maxPrice:'',minBeds:'',propertyType:''};
+const money=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
+const suggestions=['Find a sunny home with outdoor space','Show me 3 bedroom homes','Compare options under $1M'];
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-    isActive
-      ? 'bg-primary text-primary-foreground'
-      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-  }`;
-
-const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-    isActive
-      ? 'bg-primary text-primary-foreground'
-      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-  }`;
-
-type NavLinkClassFn = (props: { isActive: boolean }) => string;
-
-function NavLinks({ className, linkClass, onClick }: { className?: string; linkClass: NavLinkClassFn; onClick?: () => void }) {
-  return (
-    <nav className={className}>
-      <NavLink to="/" end className={linkClass} onClick={onClick}>
-        Home
-      </NavLink>
-    </nav>
-  );
+export default function App(){
+ const [listings,setListings]=useState<Listing[]>([]),[filters,setFilters]=useState(initialFilters),[selectedId,setSelectedId]=useState<string>(),[loading,setLoading]=useState(true),[error,setError]=useState(''),[chatOpen,setChatOpen]=useState(false),[architectureOpen,setArchitectureOpen]=useState(false),[messages,setMessages]=useState<AdvisorMessage[]>([]);
+ useEffect(()=>{const c=new AbortController();api.listings(c.signal).then(setListings).catch(()=>setError('Listings could not be loaded. Please retry.')).finally(()=>setLoading(false));return()=>c.abort()},[]);
+ const visible=useMemo(()=>listings.filter(x=>{const text=`${x.title} ${x.neighborhood} ${x.description}`.toLowerCase();return(!filters.query||text.includes(filters.query.toLowerCase()))&&(!filters.maxPrice||x.price<=Number(filters.maxPrice))&&(!filters.minBeds||x.beds>=Number(filters.minBeds))&&(!filters.propertyType||x.propertyType===filters.propertyType)}),[listings,filters]);
+ const reset=()=>{setFilters(initialFilters);setSelectedId(undefined);setMessages([])};
+ const select=(id:string)=>{setSelectedId(id);requestAnimationFrame(()=>document.getElementById(`card-${id}`)?.scrollIntoView({behavior:'smooth',block:'nearest'}))};
+ return <div className="app-shell"><header className="topbar"><a className="brand" href="#top" aria-label="Compass home"><span className="brand-mark"><Map/></span><span>Compass</span><small>Real estate intelligence</small></a><nav className="desktop-nav" aria-label="Primary"><a href="#explore">Explore</a><button onClick={()=>setChatOpen(true)}>Advisor</button><button onClick={()=>setArchitectureOpen(true)}>How it works</button></nav><div className="top-actions"><span className="data-badge"><span/> Synthetic data · Lakebase synced</span><Button variant="ghost" size="icon" onClick={reset} title="Reset demo"><RotateCcw/></Button><Button className="mobile-menu" variant="ghost" size="icon" onClick={()=>setArchitectureOpen(true)}><Menu/></Button></div></header>
+ <main id="top"><section className="hero"><div><Badge variant="secondary"><Sparkles className="badge-icon"/> AI-powered home search</Badge><h1>Find a place that<br/><em>feels like you.</em></h1><p>Explore San Francisco homes visually, then ask the Databricks-powered advisor to surface the details that matter.</p></div><div className="hero-stat"><strong>{listings.length||'—'}</strong><span>curated listings</span><span className="live-dot">Live serving data</span></div></section>
+ <section id="explore" className="explore"><div className="filter-bar"><label className="search-field"><Search/><input value={filters.query} onChange={e=>setFilters({...filters,query:e.target.value})} placeholder="Neighborhood, feature, or keyword"/></label><FilterSelect label="Price" value={filters.maxPrice} onChange={v=>setFilters({...filters,maxPrice:v})} options={[['','Any price'],['800000','Up to $800K'],['1000000','Up to $1M'],['1500000','Up to $1.5M']]}/><FilterSelect label="Beds" value={filters.minBeds} onChange={v=>setFilters({...filters,minBeds:v})} options={[['','Any beds'],['1','1+ beds'],['2','2+ beds'],['3','3+ beds']]}/><FilterSelect label="Home type" value={filters.propertyType} onChange={v=>setFilters({...filters,propertyType:v})} options={[['','All homes'],['Condo','Condo'],['Townhouse','Townhouse'],['Single family','Single family']]}/><Button variant="ghost" onClick={()=>setFilters(initialFilters)}>Clear</Button></div>
+ {error?<State title="Something went wrong" detail={error} action={<Button onClick={()=>location.reload()}>Retry</Button>}/>:loading?<LoadingState/>:<div className="workspace"><div className="results-panel"><div className="results-heading"><div><span>San Francisco</span><h2>{visible.length} homes</h2></div><span>Sorted by relevance</span></div>{visible.length?<div className="cards">{visible.map(x=><ListingCard key={x.id} listing={x} active={selectedId===x.id} onSelect={select}/>)}</div>:<State title="No homes match these filters" detail="Try expanding your price, beds, or search terms." action={<Button onClick={()=>setFilters(initialFilters)}>Clear filters</Button>}/>}</div><GeoMap listings={visible} selectedId={selectedId} onSelect={select}/></div>}</section></main>
+ <button className="advisor-fab" onClick={()=>setChatOpen(true)}><span><Bot/></span><span><strong>Ask your home advisor</strong><small>Powered by Databricks Agents</small></span><ArrowRight/></button><Advisor open={chatOpen} onOpenChange={setChatOpen} messages={messages} setMessages={setMessages} onCitation={id=>{select(id);setChatOpen(false)}}/><Architecture open={architectureOpen} onOpenChange={setArchitectureOpen}/></div>
 }
-
-function Layout() {
-  const isMobile = useIsMobile();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b px-4 md:px-6 py-3 flex items-center gap-4">
-        <h1 className="text-lg font-semibold text-foreground">real-estate-intelligence</h1>
-        {/* Desktop nav — hidden below md breakpoint */}
-        <NavLinks className="hidden md:flex gap-1" linkClass={navLinkClass} />
-        {/* Mobile nav — visible below md breakpoint */}
-        <div className="ml-auto md:hidden">
-          {/* Gate on isMobile so the portaled sheet can't linger on desktop
-              (replaces a set-state-in-effect reset). */}
-          <Sheet open={mobileNavOpen && isMobile} onOpenChange={setMobileNavOpen}>
-            <Button variant="ghost" size="icon" onClick={() => setMobileNavOpen(true)}>
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Open navigation</span>
-            </Button>
-            <SheetContent side="left">
-              <SheetHeader>
-                <SheetTitle>Navigation</SheetTitle>
-              </SheetHeader>
-              <NavLinks className="flex flex-col gap-1" linkClass={mobileNavLinkClass} onClick={() => setMobileNavOpen(false)} />
-            </SheetContent>
-          </Sheet>
-        </div>
-      </header>
-
-      <main className="flex-1 p-4 md:p-6">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
-
-const router = createBrowserRouter([
-  {
-    element: <Layout />,
-    children: [
-      { path: '/', element: <HomePage /> },
-    ],
-  },
-]);
-
-export default function App() {
-  return <RouterProvider router={router} />;
-}
-
-function HomePage() {
-  return (
-    <div className="max-w-2xl mx-auto space-y-6 mt-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold mb-2 text-foreground">
-          Welcome to your Databricks App
-        </h2>
-        <p className="text-lg text-muted-foreground">
-          Powered by Databricks AppKit
-        </p>
-      </div>
-
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Getting Started</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">Your app is ready. Explore the resources below to continue building.</p>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <a
-                href="https://github.com/databricks/appkit"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline underline-offset-4 hover:text-primary/80"
-              >
-                AppKit on GitHub →
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://developers.databricks.com/docs/appkit/v0/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline underline-offset-4 hover:text-primary/80"
-              >
-                AppKit documentation →
-              </a>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+function FilterSelect({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[][]}){return <label className="filter-select"><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>}
+function ListingCard({listing,active,onSelect}:{listing:Listing;active:boolean;onSelect:(id:string)=>void}){return <article id={`card-${listing.id}`} className={`listing-card ${active?'active':''}`} onClick={()=>onSelect(listing.id)} tabIndex={0} onKeyDown={e=>{if(e.key==='Enter')onSelect(listing.id)}}><div className={`listing-visual visual-${Number(listing.id.slice(-1))%4}`}><span>{listing.status}</span><Home/><small>{listing.neighborhood}</small></div><div className="listing-body"><div className="listing-price"><strong>{money.format(listing.price)}</strong><small>{listing.propertyType}</small></div><h3>{listing.title}</h3><div className="facts"><span><BedDouble/> {listing.beds} bd</span><span><Bath/> {listing.baths} ba</span><span><Maximize2/> {listing.sqft.toLocaleString()} ft²</span></div><p>{listing.description}</p><span className="listing-id">{listing.id}</span></div></article>}
+function GeoMap({listings,selectedId,onSelect}:{listings:Listing[];selectedId?:string;onSelect:(id:string)=>void}){const bounds=useMemo(()=>({minLat:Math.min(...listings.map(x=>x.latitude),37.72)-.01,maxLat:Math.max(...listings.map(x=>x.latitude),37.81)+.01,minLon:Math.min(...listings.map(x=>x.longitude),-122.51)-.01,maxLon:Math.max(...listings.map(x=>x.longitude),-122.38)+.01}),[listings]);return <div className="map-panel" aria-label={`Map showing ${listings.length} listings`}><div className="map-grid"/><svg viewBox="0 0 700 700" role="img"><path className="coast" d="M30 600 Q180 500 120 330 T220 20 L680 20 L680 680 L30 680Z"/><path className="road" d="M60 590 L620 90 M20 420 L640 300 M170 680 L500 20"/>{listings.map(x=>{const cx=45+610*((x.longitude-bounds.minLon)/(bounds.maxLon-bounds.minLon)),cy=655-610*((x.latitude-bounds.minLat)/(bounds.maxLat-bounds.minLat));return <g key={x.id} className={`marker ${selectedId===x.id?'selected':''}`} transform={`translate(${cx} ${cy})`} onClick={()=>onSelect(x.id)} tabIndex={0} role="button" aria-label={`${x.title}, ${money.format(x.price)}`}><circle r="27"/><text textAnchor="middle" y="5">{Math.round(x.price/1000)}k</text></g>})}</svg><div className="map-label downtown">DOWNTOWN</div><div className="map-label sunset">SUNSET</div><div className="legend"><span><i/>For sale</span><span><i className="legend-selected"/>Selected</span></div>{!listings.length&&<div className="map-empty">No markers to show</div>}</div>}
+function Advisor({open,onOpenChange,messages,setMessages,onCitation}:{open:boolean;onOpenChange:(v:boolean)=>void;messages:AdvisorMessage[];setMessages:Dispatch<SetStateAction<AdvisorMessage[]>>;onCitation:(id:string)=>void}){const[prompt,setPrompt]=useState(''),[pending,setPending]=useState(false),[chatError,setChatError]=useState('');const end=useRef<HTMLDivElement>(null);useEffect(()=>end.current?.scrollIntoView({behavior:'smooth'}),[messages,pending]);const send=async(text=prompt)=>{if(!text.trim()||pending)return;const user:AdvisorMessage={id:crypto.randomUUID(),role:'user',content:text};setMessages(v=>[...v,user]);setPrompt('');setPending(true);setChatError('');try{const result=await api.advise(text);setMessages(v=>[...v,result.message])}catch{setChatError('The advisor is unavailable. Try again.')}finally{setPending(false)}};return <Sheet open={open} onOpenChange={onOpenChange}><SheetContent side="right" className="advisor-sheet"><SheetHeader><SheetTitle><span className="advisor-title"><Bot/> Home advisor</span></SheetTitle></SheetHeader><div className="advisor-content">{!messages.length&&<div className="chat-welcome"><span><Sparkles/></span><h2>What does home<br/>look like to you?</h2><p>Describe what matters—space, light, neighborhood, commute. I’ll search the live listing set.</p><div>{suggestions.map(s=><button key={s} onClick={()=>void send(s)}>{s}<ArrowRight/></button>)}</div></div>}<div className="messages">{messages.map(m=><div key={m.id} className={`message ${m.role}`}><small>{m.role==='assistant'?'Compass advisor':'You'}</small><p>{m.content}</p>{m.citations?.map(id=><button className="citation" key={id} onClick={()=>onCitation(id)}><Map/> View {id}</button>)}</div>)}{pending&&<div className="message assistant typing"><i/><i/><i/> Searching Lakebase…</div>}{chatError&&<div className="chat-error">{chatError} <button onClick={()=>void send(messages.at(-1)?.content)}>Retry</button></div>}<div ref={end}/></div><form className="chat-input" onSubmit={e=>{e.preventDefault();void send()}}><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Ask about homes, tradeoffs, or neighborhoods…" rows={2}/><Button size="icon" type="submit" disabled={!prompt.trim()||pending}><Send/></Button><small>Answers cite the synthetic listing dataset.</small></form></div></SheetContent></Sheet>}
+function Architecture({open,onOpenChange}:{open:boolean;onOpenChange:(v:boolean)=>void}){return <Sheet open={open} onOpenChange={onOpenChange}><SheetContent side="right" className="architecture-sheet"><SheetHeader><SheetTitle>How it works</SheetTitle></SheetHeader><div className="architecture"><Badge variant="secondary">Built on the Databricks Data Intelligence Platform</Badge><h2>From governed data<br/>to grounded answers.</h2><p>One architecture turns trusted listing data into a fast, conversational real-estate experience.</p><div className="flow"><FlowStep icon={<Database/>} number="01" title="Delta Lake" text="The governed source of truth for our synthetic listing dataset."/><ArrowRight/><FlowStep icon={<Layers3/>} number="02" title="Lakebase" text="Low-latency operational serving and semantic search."/><ArrowRight/><FlowStep icon={<Bot/>} number="03" title="Agent tools" text="Typed tools retrieve and compare only grounded records."/><ArrowRight/><FlowStep icon={<Building2/>} number="04" title="Databricks App" text="AppKit delivers the map, search, and advisor in one secure app."/></div><div className="architecture-notes"><div><SquareStack/><span><strong>Governed by design</strong>Unity Catalog controls the source data and lineage.</span></div><div><MessageCircle/><span><strong>Grounded responses</strong>Every recommendation links to a stable listing ID.</span></div><div><Sparkles/><span><strong>Demo-safe data</strong>All people, homes, and values shown here are synthetic.</span></div></div><Button onClick={()=>onOpenChange(false)}>Back to exploring homes</Button></div></SheetContent></Sheet>}
+function FlowStep({icon,number,title,text}:{icon:ReactNode;number:string;title:string;text:string}){return <div className="flow-step"><small>{number}</small><span>{icon}</span><strong>{title}</strong><p>{text}</p></div>}
+function State({title,detail,action}:{title:string;detail:string;action?:ReactNode}){return <div className="state"><Home/><h2>{title}</h2><p>{detail}</p>{action}</div>}
+function LoadingState(){return <div className="loading-state"><div/><div/><div/></div>}
