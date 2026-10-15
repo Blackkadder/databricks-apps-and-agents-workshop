@@ -27,7 +27,7 @@ export function createListingsRouter(service: ListingService): Router {
       const item = await service.get(
         z
           .string()
-          .regex(/^SYN-\d{4}$/)
+          .regex(/^RE-\d{4}$/)
           .parse(req.params.listingId)
       );
       item ? res.json(item) : res.status(404).json({ code: 'NOT_FOUND' });

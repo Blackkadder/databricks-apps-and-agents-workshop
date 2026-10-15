@@ -15,8 +15,9 @@ export class ListingTimeoutError extends Error {
 }
 
 const COLUMNS = `listing_id, title, description, property_type, status, price, bedrooms,
-  bathrooms, square_feet, year_built, neighborhood, city, state, postal_code,
-  latitude, longitude, amenities`;
+  bathrooms, square_feet, price_per_sqft, year_built, neighborhood, city, state, postal_code,
+  latitude, longitude, amenities, transit_score, walk_score, days_on_market, listed_at,
+  has_outdoor_space, has_parking`;
 
 export class ListingService {
   constructor(
@@ -42,7 +43,7 @@ export class ListingService {
   }
 
   async get(listingId: string): Promise<Listing | null> {
-    const result = await this.run<Listing>(`SELECT ${COLUMNS} FROM listings WHERE listing_id = $1`, [listingId]);
+    const result = await this.run<Listing>(`SELECT ${COLUMNS} FROM compass.listings_synced WHERE listing_id = $1`, [listingId]);
     return result.rows[0] ?? null;
   }
 
@@ -60,10 +61,10 @@ export class ListingService {
     if (filters.maxPrice !== undefined) add('price <=', filters.maxPrice);
     if (filters.bedrooms !== undefined) add('bedrooms >=', filters.bedrooms);
     const predicate = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const count = await this.run<{ total: number }>(`SELECT count(*)::int AS total FROM listings ${predicate}`, values);
+    const count = await this.run<{ total: number }>(`SELECT count(*)::int AS total FROM compass.listings_synced ${predicate}`, values);
     values.push(filters.pageSize, (filters.page - 1) * filters.pageSize);
     const data = await this.run<Listing>(
-      `SELECT ${COLUMNS} FROM listings ${predicate} ORDER BY listing_id LIMIT $${values.length - 1} OFFSET $${values.length}`,
+      `SELECT ${COLUMNS} FROM compass.listings_synced ${predicate} ORDER BY listing_id LIMIT $${values.length - 1} OFFSET $${values.length}`,
       values
     );
     return { items: data.rows, page: filters.page, pageSize: filters.pageSize, total: count.rows[0]?.total ?? 0 };
@@ -71,7 +72,7 @@ export class ListingService {
 
   async search(query: string, limit = 20): Promise<Listing[]> {
     const result = await this.run<Listing>(
-      `SELECT ${COLUMNS} FROM listings
+      `SELECT ${COLUMNS} FROM compass.listings_synced
       WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' ||
         coalesce(neighborhood,'') || ' ' || coalesce(amenities,'')) @@ websearch_to_tsquery('english', $1)
       ORDER BY ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' ||

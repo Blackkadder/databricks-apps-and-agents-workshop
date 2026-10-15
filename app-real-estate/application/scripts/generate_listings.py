@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import random
+from datetime import date, timedelta
 from pathlib import Path
 
 DEFAULT_ROWS = 300
@@ -15,8 +16,10 @@ SEED = 20261015
 
 FIELDS = [
     "listing_id", "title", "description", "property_type", "status", "price",
-    "bedrooms", "bathrooms", "square_feet", "year_built", "neighborhood",
+    "bedrooms", "bathrooms", "square_feet", "price_per_sqft", "year_built", "neighborhood",
     "city", "state", "postal_code", "latitude", "longitude", "amenities",
+    "transit_score", "walk_score", "days_on_market", "listed_at",
+    "has_outdoor_space", "has_parking",
 ]
 
 NEIGHBORHOODS = [
@@ -56,16 +59,25 @@ def generate(rows: int = DEFAULT_ROWS) -> list[dict[str, object]]:
             f"and {square_feet} square feet in {neighborhood}. Features {', '.join(amenities)}. "
             "Created for a Databricks real-estate demonstration; not a real property listing."
         )
+        transit_score = 64 + (index * 7) % 34
+        walk_score = 68 + (index * 11) % 31
+        days_on_market = 3 + (index * 5) % 88
         listings.append({
-            "listing_id": f"SYN-{index + 1:04d}", "title": title, "description": description,
+            "listing_id": f"RE-{index + 1:04d}", "title": title, "description": description,
             "property_type": property_type, "status": STATUSES[index % len(STATUSES)],
             "price": price, "bedrooms": bedrooms, "bathrooms": bathrooms,
-            "square_feet": square_feet, "year_built": 1920 + (index * 7) % 105,
+            "square_feet": square_feet, "price_per_sqft": round(price / square_feet, 2),
+            "year_built": 1920 + (index * 7) % 105,
             "neighborhood": neighborhood, "city": "New York", "state": "NY",
             "postal_code": postal_code,
             "latitude": round(base_lat + rng.uniform(-0.009, 0.009), 6),
             "longitude": round(base_lon + rng.uniform(-0.009, 0.009), 6),
             "amenities": "|".join(amenities),
+            "transit_score": transit_score, "walk_score": walk_score,
+            "days_on_market": days_on_market,
+            "listed_at": (date(2026, 10, 15) - timedelta(days=days_on_market)).isoformat(),
+            "has_outdoor_space": any(value in amenities for value in ("roof deck", "balcony", "garden")),
+            "has_parking": any(value in amenities for value in ("parking", "EV charging")),
         })
     return listings
 

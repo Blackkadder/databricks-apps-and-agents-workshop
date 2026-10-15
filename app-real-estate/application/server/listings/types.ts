@@ -10,6 +10,7 @@ export const listingSchema = z.object({
   bedrooms: z.number(),
   bathrooms: z.number(),
   square_feet: z.number(),
+  price_per_sqft: z.number(),
   year_built: z.number(),
   neighborhood: z.string(),
   city: z.string(),
@@ -18,6 +19,12 @@ export const listingSchema = z.object({
   latitude: z.number(),
   longitude: z.number(),
   amenities: z.string(),
+  transit_score: z.number(),
+  walk_score: z.number(),
+  days_on_market: z.number(),
+  listed_at: z.coerce.date(),
+  has_outdoor_space: z.boolean(),
+  has_parking: z.boolean(),
 });
 export type Listing = z.infer<typeof listingSchema>;
 

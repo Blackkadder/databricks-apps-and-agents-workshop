@@ -18,6 +18,12 @@ def validate(path: Path) -> None:
         assert -90 <= float(row["latitude"]) <= 90
         assert -180 <= float(row["longitude"]) <= 180
         assert int(row["price"]) > 0 and int(row["square_feet"]) > 0
+        assert abs(float(row["price_per_sqft"]) - int(row["price"]) / int(row["square_feet"])) < 0.01
+        assert 0 <= int(row["transit_score"]) <= 100
+        assert 0 <= int(row["walk_score"]) <= 100
+        assert int(row["days_on_market"]) >= 0
+        assert row["has_outdoor_space"] in {"True", "False"}
+        assert row["has_parking"] in {"True", "False"}
         assert row["property_type"] in {"condo", "townhouse", "co-op", "single-family"}
         assert row["status"] in {"active", "coming-soon"}
         assert row["neighborhood"] in row["description"]
