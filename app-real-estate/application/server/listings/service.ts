@@ -88,7 +88,7 @@ export class ListingService {
   async list(filters: ListingFilters): Promise<Page<Listing>> {
     const { predicate, values, rank } = buildPredicate(filters);
     const count = await this.run<{ total: number }>(
-      `SELECT LEAST(count(*)::int, ${MAX_VISIBLE_RESULTS}) AS total FROM compass.listings_synced ${predicate}`,
+      `SELECT count(*)::int AS total FROM compass.listings_synced ${predicate}`,
       values
     );
     const offset = (filters.page - 1) * filters.pageSize;
@@ -98,7 +98,7 @@ export class ListingService {
         items: [],
         page: filters.page,
         pageSize: filters.pageSize,
-        total: Math.min(count.rows[0]?.total ?? 0, MAX_VISIBLE_RESULTS),
+        total: count.rows[0]?.total ?? 0,
       };
     }
     const dataValues = [...values, pageLimit, offset];
@@ -110,7 +110,7 @@ export class ListingService {
       items: data.rows.slice(0, pageLimit),
       page: filters.page,
       pageSize: filters.pageSize,
-      total: Math.min(count.rows[0]?.total ?? 0, MAX_VISIBLE_RESULTS),
+      total: count.rows[0]?.total ?? 0,
     };
   }
 

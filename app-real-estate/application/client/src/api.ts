@@ -14,7 +14,6 @@ type StoredListing = {
   city: string; latitude: number; longitude: number; description: string;
 };
 type ListingPage = { items: StoredListing[]; total: number; page: number; pageSize: number };
-type ListingSearchPage = { items: StoredListing[] };
 export type ListingResult = { items: Listing[]; total: number };
 type AgentReply = { message: string; listingIds: string[]; sessionId: string };
 
@@ -36,20 +35,8 @@ let sessionId: string | undefined;
 
 export const api = {
   async listings(filters: ListingFilters, signal?: AbortSignal): Promise<ListingResult> {
-    const query = filters.query.trim();
-    if (query) {
-      const params = new URLSearchParams({ q: query, limit: '100' });
-      const result = await json<ListingSearchPage>(await fetch(`/api/listings/search?${params}`, { signal }));
-      // The full-text endpoint does not expose a total. Apply any additional structured
-      // constraints to its bounded response while retaining server-side text search.
-      const items = result.items.map(toListing).filter((item) =>
-        (!filters.maxPrice || item.price <= Number(filters.maxPrice)) &&
-        (!filters.minBeds || item.beds >= Number(filters.minBeds)) &&
-        (!filters.propertyType || item.propertyType === filters.propertyType)
-      ).slice(0, 100);
-      return { items, total: items.length };
-    }
     const params = new URLSearchParams({ page: '1', pageSize: '100' });
+    if (filters.query.trim()) params.set('q', filters.query.trim());
     if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
     if (filters.minBeds) params.set('bedrooms', filters.minBeds);
     if (filters.propertyType) params.set('propertyType', storedPropertyType(filters.propertyType));

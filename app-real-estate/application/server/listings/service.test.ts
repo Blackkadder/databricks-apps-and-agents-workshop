@@ -3,7 +3,6 @@ import {
   ListingService,
   ListingTimeoutError,
   ListingUnavailableError,
-  MAX_VISIBLE_RESULTS,
   type QueryClient,
 } from './service.js';
 import { listingFiltersSchema, listingSearchSchema } from './types.js';
@@ -80,7 +79,7 @@ describe('ListingService', () => {
       .mockResolvedValueOnce({ rows });
     const page = await new ListingService({ query } as QueryClient).list({ page: 2, pageSize: 75 });
 
-    expect(page.total).toBe(MAX_VISIBLE_RESULTS);
+    expect(page.total).toBe(300);
     expect(page.items).toHaveLength(25);
     expect(query.mock.calls[1][1]).toEqual([25, 75]);
 
