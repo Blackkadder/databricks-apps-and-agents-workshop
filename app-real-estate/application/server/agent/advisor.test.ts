@@ -12,6 +12,15 @@ function advisor() {
 }
 
 describe('RealEstateAdvisor', () => {
+  test('honors a result count written as a word', async () => {
+    const listings = Array.from({ length: 5 }, (_, index) => sampleListing(`RE-000${index + 1}`));
+    const instance = new RealEstateAdvisor(new AgentTools(new InMemoryListingRepository(listings)));
+
+    const reply = await instance.chat(undefined, 'Show me three homes under $900K');
+
+    expect(reply.listingIds).toHaveLength(3);
+  });
+
   test('cites every search result and preserves shortlist for a follow-up', async () => {
     const first = await advisor().chat(
       undefined,

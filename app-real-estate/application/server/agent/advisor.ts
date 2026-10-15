@@ -25,8 +25,25 @@ function parseConstraints(message: string, previous: SearchConstraints): SearchC
   if (/outdoor|balcony|yard|terrace|patio/i.test(message)) next.hasOutdoorSpace = true;
   if (/parking|garage/i.test(message)) next.hasParking = true;
   if (/transit|subway|train/i.test(message)) next.minTransitScore = 70;
-  const desiredCount = message.match(/\b(?:show|find|give)\s+(?:me\s+)?(\d+)\b/i);
-  next.limit = desiredCount ? Math.min(Number(desiredCount[1]), 10) : (next.limit ?? 5);
+  const desiredCount = message.match(
+    /\b(?:show|find|give)\s+(?:me\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i
+  );
+  const numberWords: Record<string, number> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+  };
+  const requestedLimit = desiredCount
+    ? (numberWords[desiredCount[1].toLowerCase()] ?? Number(desiredCount[1]))
+    : undefined;
+  next.limit = requestedLimit ? Math.min(requestedLimit, 10) : (next.limit ?? 5);
   next.query = message;
   return next;
 }
