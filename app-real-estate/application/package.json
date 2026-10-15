@@ -17,6 +17,8 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "test": "vitest run",
+    "data:generate": "python3 scripts/generate_listings.py",
+    "data:validate": "python3 scripts/validate_listings.py && python3 -m unittest discover -s tests",
     "clean": "rm -rf client/dist dist build node_modules",
     "prebuild": "pnpm run sync && appkit generate-types --wait",
     "predev": "pnpm run sync && pnpm run typegen",
