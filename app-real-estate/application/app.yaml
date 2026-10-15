@@ -1,0 +1,11 @@
+command: ['pnpm', 'run', 'start']
+
+env:
+  - name: LAKEBASE_ENDPOINT
+    valueFrom: postgres
+  - name: UC_CATALOG
+    value: hackathon_prep
+  - name: UC_SCHEMA
+    value: compass
+  - name: UC_LISTINGS_TABLE
+    value: hackathon_prep.compass.listings

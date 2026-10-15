@@ -1,6 +1,16 @@
 bundle:
   name: real-estate-intelligence
 
+variables:
+  agents_serving_endpoint_name:
+    description: Default LLM serving endpoint name
+  lakebase_branch:
+    description: Lakebase Autoscaling branch resource name
+  lakebase_database:
+    description: Lakebase Autoscaling database resource name
+  sql_warehouse_id:
+    description: SQL warehouse used for Unity Catalog queries
+
 resources:
   apps:
     app:
@@ -11,12 +21,30 @@ resources:
       # Start the app automatically on deploy.
       lifecycle:
         started: true
-      # Uncomment to enable on behalf of user API scopes. Available scopes: sql, genie, files, model-serving
-      # user_api_scopes:
-      #   - sql
+
+      resources:
+        - name: agents-serving-endpoint
+          serving_endpoint:
+            name: ${var.agents_serving_endpoint_name}
+            permission: CAN_QUERY
+        - name: postgres
+          postgres:
+            branch: ${var.lakebase_branch}
+            database: ${var.lakebase_database}
+            permission: CAN_CONNECT_AND_CREATE
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.sql_warehouse_id}
+            permission: CAN_USE
 
 targets:
   default:
     default: true
     workspace:
       host: https://fevm-serverless-stable-s967xa.cloud.databricks.com
+
+    variables:
+      agents_serving_endpoint_name: databricks-gpt-6-1-sol
+      lakebase_branch: projects/real-estate-intelligence/branches/production
+      lakebase_database: projects/real-estate-intelligence/branches/production/databases/databricks-postgres
+      sql_warehouse_id: 7fdbdb9a13f359b9
