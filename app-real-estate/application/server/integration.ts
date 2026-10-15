@@ -81,7 +81,8 @@ class LakebaseListingRepository implements ListingRepository {
     if (constraints.amenities?.length) {
       for (const amenity of constraints.amenities) add('amenities ILIKE', `%${amenity}%`);
     }
-    if (constraints.query) {
+    const hasStructuredConstraints = clauses.length > 0;
+    if (constraints.query && !hasStructuredConstraints) {
       values.push(constraints.query);
       clauses.push(`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' ||
         coalesce(neighborhood,'') || ' ' || coalesce(amenities,'')) @@ websearch_to_tsquery('english', $${values.length})`);

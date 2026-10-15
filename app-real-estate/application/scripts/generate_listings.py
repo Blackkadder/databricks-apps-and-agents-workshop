@@ -52,7 +52,7 @@ def generate(rows: int = DEFAULT_ROWS) -> list[dict[str, object]]:
         bathrooms = round(1 + (index % 5) * 0.5, 1)
         square_feet = 575 + bedrooms * 260 + (index % 9) * 45
         amenities = AMENITY_SETS[index % len(AMENITY_SETS)]
-        price = 425_000 + bedrooms * 245_000 + (index % 17) * 28_500 + (index % 5) * 35_000
+        price = 350_000 + bedrooms * 220_000 + (index % 17) * 24_500 + (index % 5) * 30_000
         title = f"{bedrooms}-bedroom {property_type} in {neighborhood}"
         description = (
             f"Synthetic {property_type} with {bedrooms} bedrooms, {bathrooms:g} bathrooms, "
