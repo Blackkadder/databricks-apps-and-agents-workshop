@@ -1,7 +1,7 @@
 # Synthetic data and Lakebase initialization
 
-The demo has one logical dataset: 300 deterministic synthetic listings. The
-generator rejects more than 499 records. It contains no MLS content or real PII.
+The demo has one logical dataset of exactly 600 deterministic synthetic listings.
+The generator rejects any other row count. It contains no MLS content or real PII.
 
 ```bash
 python3 scripts/generate_listings.py

@@ -102,7 +102,7 @@ Show the one-table data flow, agent tools, citations, Unity Catalog lineage/gove
 
 - A single command or documented sequence must initialize all demo data resources.
 - Use a fixed random seed so repeated initialization produces the same dataset.
-- Generate **300 synthetic listings** by default; enforce a hard maximum of **499 rows**.
+- Generate exactly **600 synthetic listings** in a single table and reject any other row count.
 - Generate exactly one logical source table named `listings`.
 - Write the generated records to:
   1. `data/listings.csv`
@@ -223,8 +223,8 @@ Delta is the governed source of truth. Lakebase is the operational serving layer
 ## 11. Success criteria
 
 - A new environment can be initialized from repository instructions without manual data editing.
-- The CSV, Delta table, and Lakebase synced table each expose the same 300 listing IDs.
-- No more than 499 rows exist in the source dataset.
+- The CSV, Delta table, and Lakebase synced table each expose the same 600 listing IDs.
+- Exactly 600 rows exist in the source dataset.
 - Map points use valid coordinates and respond correctly to all required filters.
 - Search returns relevant results for the scripted demo prompts.
 - Agent answers cite valid listing IDs and contain no unsupported property facts in the scripted flow.
@@ -234,7 +234,7 @@ Delta is the governed source of truth. Lakebase is the operational serving layer
 ## 12. Acceptance test scenarios
 
 1. Run initialization twice and confirm it completes without duplicate records.
-2. Verify CSV row count is 300 and IDs are unique.
+2. Verify CSV row count is 600 and IDs are unique.
 3. Compare ID sets and key field checksums across CSV, Delta, and Lakebase.
 4. Confirm all coordinates fall inside the configured demo-region bounding box.
 5. Filter for a neighborhood and verify map markers, result count, and cards agree.

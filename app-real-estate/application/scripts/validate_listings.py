@@ -4,13 +4,13 @@
 import csv
 from pathlib import Path
 
-from generate_listings import FIELDS, MAX_ROWS
+from generate_listings import FIELDS, REQUIRED_ROWS
 
 
 def validate(path: Path) -> None:
     with path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
-    assert rows and len(rows) <= MAX_ROWS
+    assert len(rows) == REQUIRED_ROWS
     assert list(rows[0]) == FIELDS
     assert len({row["listing_id"] for row in rows}) == len(rows)
     for row in rows:

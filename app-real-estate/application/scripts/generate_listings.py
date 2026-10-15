@@ -10,8 +10,8 @@ import random
 from datetime import date, timedelta
 from pathlib import Path
 
-DEFAULT_ROWS = 300
-MAX_ROWS = 499
+DEFAULT_ROWS = 600
+REQUIRED_ROWS = 600
 SEED = 20261015
 
 FIELDS = [
@@ -41,8 +41,8 @@ AMENITY_SETS = [
 
 
 def generate(rows: int = DEFAULT_ROWS) -> list[dict[str, object]]:
-    if not 1 <= rows <= MAX_ROWS:
-        raise ValueError(f"rows must be between 1 and {MAX_ROWS}")
+    if rows != REQUIRED_ROWS:
+        raise ValueError(f"rows must be exactly {REQUIRED_ROWS}")
     rng = random.Random(SEED)
     listings: list[dict[str, object]] = []
     for index in range(rows):

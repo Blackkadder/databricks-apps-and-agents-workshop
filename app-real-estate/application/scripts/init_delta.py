@@ -10,6 +10,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from generate_listings import REQUIRED_ROWS
+
 TABLE_COMMENT = "Synthetic real-estate listings for demonstration only; contains no MLS or personal data."
 
 
@@ -71,8 +73,8 @@ AS source({aliases})"""
 def initialize(csv_path: Path, catalog: str, schema: str, warehouse: str, profile: str) -> None:
     with csv_path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
-    if not rows or len(rows) > 499:
-        raise ValueError("CSV must contain between 1 and 499 listings")
+    if len(rows) != REQUIRED_ROWS:
+        raise ValueError(f"CSV must contain exactly {REQUIRED_ROWS} listings")
     execute(f"CREATE SCHEMA IF NOT EXISTS {identifier(catalog)}.{identifier(schema)}", warehouse, profile)
     execute(create_statement(rows, catalog, schema), warehouse, profile)
     table = f"{identifier(catalog)}.{identifier(schema)}.`listings`"

@@ -25,12 +25,12 @@ The issues below are ordered by dependency. Each issue is intended to be indepen
 
 **Goal:** Generate a deterministic, useful dataset for search, mapping, and the scripted demo.
 
-**Scope:** One `listings` schema, fixed seed, clustered coordinates, internally consistent descriptions, and 300 default rows.
+**Scope:** One `listings` schema, fixed seed, clustered coordinates, internally consistent descriptions, and exactly 600 rows.
 
 **Acceptance criteria:**
 
-- Generator creates exactly one logical table and defaults to 300 rows.
-- Generator rejects requests above 499 rows.
+- Generator creates exactly one logical table with 600 rows.
+- Generator rejects requests for any other row count.
 - IDs are unique; required fields are populated; coordinates and values are valid.
 - No real PII or copied MLS content is present.
 - The scripted search scenarios have known matching records.
@@ -84,7 +84,7 @@ The issues below are ordered by dependency. Each issue is intended to be indepen
 **Acceptance criteria:**
 
 - Synced table is sourced from the Unity Catalog Delta table.
-- All 300 listing IDs become queryable in Lakebase.
+- All 600 listing IDs become queryable in Lakebase.
 - Sync status/freshness can be retrieved.
 - Validation detects row/ID mismatches and stalled syncs.
 

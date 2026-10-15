@@ -14,13 +14,15 @@ from validate_listings import validate  # noqa: E402
 class ListingDataTest(unittest.TestCase):
     def test_default_dataset_contract(self):
         rows = generate()
-        self.assertEqual(300, len(rows))
-        self.assertEqual(300, len({r["listing_id"] for r in rows}))
+        self.assertEqual(600, len(rows))
+        self.assertEqual(600, len({r["listing_id"] for r in rows}))
         self.assertTrue(any(r["neighborhood"] == "Riverside" and "doorman" in r["amenities"] for r in rows))
 
-    def test_hard_cap(self):
+    def test_exact_row_contract(self):
         with self.assertRaises(ValueError):
-            generate(500)
+            generate(599)
+        with self.assertRaises(ValueError):
+            generate(601)
 
     def test_reproducible_csv_and_validation(self):
         with tempfile.TemporaryDirectory() as directory:

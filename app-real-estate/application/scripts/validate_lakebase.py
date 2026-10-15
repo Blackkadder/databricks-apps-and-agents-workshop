@@ -6,6 +6,8 @@ import csv
 import os
 from pathlib import Path
 
+from generate_listings import REQUIRED_ROWS
+
 
 def validate(csv_path: Path, database_url: str) -> None:
     try:
@@ -14,6 +16,8 @@ def validate(csv_path: Path, database_url: str) -> None:
         raise SystemExit("Install psycopg[binary] to validate Lakebase") from exc
     with csv_path.open(newline="", encoding="utf-8") as handle:
         expected = {row["listing_id"] for row in csv.DictReader(handle)}
+    if len(expected) != REQUIRED_ROWS:
+        raise RuntimeError(f"CSV must contain {REQUIRED_ROWS} unique listing IDs before Lakebase validation")
     with psycopg.connect(database_url, connect_timeout=10) as connection:
         with connection.cursor() as cursor:
             cursor.execute("SELECT listing_id FROM listings")

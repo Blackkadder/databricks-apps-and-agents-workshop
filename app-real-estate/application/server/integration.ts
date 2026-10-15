@@ -110,7 +110,7 @@ class LakebaseListingRepository implements ListingRepository {
   async health(): Promise<{ ok: boolean; detail?: string }> {
     try {
       const result = await database.query<{ count: number }>('SELECT count(*)::int AS count FROM compass.listings_synced');
-      return { ok: result.rows[0]?.count === 300, detail: `${result.rows[0]?.count ?? 0} listings available` };
+      return { ok: result.rows[0]?.count === 600, detail: `${result.rows[0]?.count ?? 0} listings available` };
     } catch (error) {
       return { ok: false, detail: error instanceof Error ? error.message : 'Lakebase unavailable' };
     }
