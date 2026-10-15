@@ -21,7 +21,7 @@ def find_states(value: object) -> list[str]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", default="synced_tables/hackathon_prep.compass.listings")
+    parser.add_argument("--name", default="synced_tables/hackathon_prep.compass.listings_synced")
     parser.add_argument("--profile", default="fe-vm-serverless-stable-s967xa")
     args = parser.parse_args()
     result = subprocess.run(

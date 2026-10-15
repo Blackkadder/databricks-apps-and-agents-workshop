@@ -54,7 +54,9 @@ def create_statement(rows: list[dict[str, str]], catalog: str, schema: str) -> s
     table = f"{identifier(catalog)}.{identifier(schema)}.`listings`"
     return f"""CREATE OR REPLACE TABLE {table}
 USING DELTA
-COMMENT {literal(TABLE_COMMENT)} AS
+COMMENT {literal(TABLE_COMMENT)}
+TBLPROPERTIES (delta.enableChangeDataFeed = true)
+AS
 SELECT
   listing_id, title, description, property_type, status,
   CAST(price AS INT) AS price, CAST(bedrooms AS INT) AS bedrooms,
@@ -78,7 +80,6 @@ def initialize(csv_path: Path, catalog: str, schema: str, warehouse: str, profil
     execute(f"CREATE SCHEMA IF NOT EXISTS {identifier(catalog)}.{identifier(schema)}", warehouse, profile)
     execute(create_statement(rows, catalog, schema), warehouse, profile)
     table = f"{identifier(catalog)}.{identifier(schema)}.`listings`"
-    execute(f"ALTER TABLE {table} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)", warehouse, profile)
     validation = execute(
         f"SELECT count(*) AS rows, count(DISTINCT listing_id) AS ids FROM {table}", warehouse, profile
     )
