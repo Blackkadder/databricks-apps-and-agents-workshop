@@ -28,20 +28,58 @@ export const listingSchema = z.object({
 });
 export type Listing = z.infer<typeof listingSchema>;
 
+const booleanQueryParam = z.enum(['true', 'false']).transform((value) => value === 'true');
+
+const stringListQueryParam = z.preprocess(
+  (value) =>
+    Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+        ? value
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : value,
+  z.array(z.string().trim().min(1)).min(1).max(20)
+);
+
+export const listingFilterFields = {
+  q: z.string().trim().min(1).max(500).optional(),
+  neighborhood: z.string().trim().min(1).optional(),
+  propertyType: z.string().trim().min(1).optional(),
+  status: z.string().trim().min(1).optional(),
+  minPrice: z.coerce.number().int().nonnegative().optional(),
+  maxPrice: z.coerce.number().int().positive().optional(),
+  bedrooms: z.coerce.number().int().min(0).optional(),
+  minBathrooms: z.coerce.number().nonnegative().optional(),
+  amenities: stringListQueryParam.optional(),
+  hasOutdoorSpace: booleanQueryParam.optional(),
+  hasParking: booleanQueryParam.optional(),
+  minTransitScore: z.coerce.number().int().min(0).max(100).optional(),
+  minWalkScore: z.coerce.number().int().min(0).max(100).optional(),
+} as const;
+
+const validPriceRange = <T extends { minPrice?: number; maxPrice?: number }>(value: T) =>
+  value.minPrice === undefined || value.maxPrice === undefined || value.minPrice <= value.maxPrice;
+
 export const listingFiltersSchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(25),
-    neighborhood: z.string().min(1).optional(),
-    propertyType: z.string().min(1).optional(),
-    status: z.string().min(1).optional(),
-    minPrice: z.coerce.number().int().nonnegative().optional(),
-    maxPrice: z.coerce.number().int().positive().optional(),
-    bedrooms: z.coerce.number().int().min(0).optional(),
+    ...listingFilterFields,
   })
-  .refine((v) => v.minPrice === undefined || v.maxPrice === undefined || v.minPrice <= v.maxPrice, {
+  .refine(validPriceRange, {
     message: 'minPrice cannot exceed maxPrice',
   });
 export type ListingFilters = z.infer<typeof listingFiltersSchema>;
+
+export const listingSearchSchema = z
+  .object({
+    ...listingFilterFields,
+    q: z.string().trim().min(1).max(500),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .refine(validPriceRange, { message: 'minPrice cannot exceed maxPrice' });
+export type ListingSearchFilters = z.infer<typeof listingSearchSchema>;
 
 export type Page<T> = { items: T[]; page: number; pageSize: number; total: number };

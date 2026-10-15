@@ -1,4 +1,4 @@
-import type { Listing, ListingFilters, Page } from './types.js';
+import type { Listing, ListingFilters, ListingSearchFilters, Page } from './types.js';
 
 export interface QueryResult<Row> {
   rows: Row[];
@@ -18,6 +18,42 @@ const COLUMNS = `listing_id, title, description, property_type, status, price, b
   bathrooms, square_feet, price_per_sqft, year_built, neighborhood, city, state, postal_code,
   latitude, longitude, amenities, transit_score, walk_score, days_on_market, listed_at,
   has_outdoor_space, has_parking`;
+
+export const MAX_VISIBLE_RESULTS = 100;
+
+type FilterValues = Omit<ListingFilters, 'page' | 'pageSize'>;
+
+function buildPredicate(filters: FilterValues): { predicate: string; values: unknown[]; rank: string } {
+  const where: string[] = [];
+  const values: unknown[] = [];
+  const add = (column: string, operator: string, value: unknown) => {
+    values.push(value);
+    where.push(`${column} ${operator} $${values.length}`);
+  };
+  if (filters.neighborhood) add('neighborhood', '=', filters.neighborhood);
+  if (filters.propertyType) add('property_type', '=', filters.propertyType);
+  if (filters.status) add('status', '=', filters.status);
+  if (filters.minPrice !== undefined) add('price', '>=', filters.minPrice);
+  if (filters.maxPrice !== undefined) add('price', '<=', filters.maxPrice);
+  if (filters.bedrooms !== undefined) add('bedrooms', '>=', filters.bedrooms);
+  if (filters.minBathrooms !== undefined) add('bathrooms', '>=', filters.minBathrooms);
+  if (filters.hasOutdoorSpace !== undefined) add('has_outdoor_space', '=', filters.hasOutdoorSpace);
+  if (filters.hasParking !== undefined) add('has_parking', '=', filters.hasParking);
+  if (filters.minTransitScore !== undefined) add('transit_score', '>=', filters.minTransitScore);
+  if (filters.minWalkScore !== undefined) add('walk_score', '>=', filters.minWalkScore);
+  for (const amenity of filters.amenities ?? []) add('amenities', 'ILIKE', `%${amenity.replace(/[%_\\]/g, '\\$&')}%`);
+
+  let rank = '';
+  if (filters.q) {
+    values.push(filters.q);
+    const vector = `to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' ||
+      coalesce(neighborhood,'') || ' ' || coalesce(amenities,''))`;
+    const query = `websearch_to_tsquery('english', $${values.length})`;
+    where.push(`${vector} @@ ${query}`);
+    rank = `ts_rank(${vector}, ${query}) DESC, `;
+  }
+  return { predicate: where.length ? `WHERE ${where.join(' AND ')}` : '', values, rank };
+}
 
 export class ListingService {
   constructor(
@@ -43,43 +79,50 @@ export class ListingService {
   }
 
   async get(listingId: string): Promise<Listing | null> {
-    const result = await this.run<Listing>(`SELECT ${COLUMNS} FROM compass.listings_synced WHERE listing_id = $1`, [listingId]);
+    const result = await this.run<Listing>(`SELECT ${COLUMNS} FROM compass.listings_synced WHERE listing_id = $1`, [
+      listingId,
+    ]);
     return result.rows[0] ?? null;
   }
 
   async list(filters: ListingFilters): Promise<Page<Listing>> {
-    const where: string[] = [];
-    const values: unknown[] = [];
-    const add = (clause: string, value: unknown) => {
-      values.push(value);
-      where.push(`${clause} $${values.length}`);
-    };
-    if (filters.neighborhood) add('neighborhood =', filters.neighborhood);
-    if (filters.propertyType) add('property_type =', filters.propertyType);
-    if (filters.status) add('status =', filters.status);
-    if (filters.minPrice !== undefined) add('price >=', filters.minPrice);
-    if (filters.maxPrice !== undefined) add('price <=', filters.maxPrice);
-    if (filters.bedrooms !== undefined) add('bedrooms >=', filters.bedrooms);
-    const predicate = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const count = await this.run<{ total: number }>(`SELECT count(*)::int AS total FROM compass.listings_synced ${predicate}`, values);
-    values.push(filters.pageSize, (filters.page - 1) * filters.pageSize);
-    const data = await this.run<Listing>(
-      `SELECT ${COLUMNS} FROM compass.listings_synced ${predicate} ORDER BY listing_id LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    const { predicate, values, rank } = buildPredicate(filters);
+    const count = await this.run<{ total: number }>(
+      `SELECT LEAST(count(*)::int, ${MAX_VISIBLE_RESULTS}) AS total FROM compass.listings_synced ${predicate}`,
       values
     );
-    return { items: data.rows, page: filters.page, pageSize: filters.pageSize, total: count.rows[0]?.total ?? 0 };
+    const offset = (filters.page - 1) * filters.pageSize;
+    const pageLimit = Math.max(0, Math.min(filters.pageSize, MAX_VISIBLE_RESULTS - offset));
+    if (pageLimit === 0) {
+      return {
+        items: [],
+        page: filters.page,
+        pageSize: filters.pageSize,
+        total: Math.min(count.rows[0]?.total ?? 0, MAX_VISIBLE_RESULTS),
+      };
+    }
+    const dataValues = [...values, pageLimit, offset];
+    const data = await this.run<Listing>(
+      `SELECT ${COLUMNS} FROM compass.listings_synced ${predicate} ORDER BY ${rank}listing_id LIMIT $${dataValues.length - 1} OFFSET $${dataValues.length}`,
+      dataValues
+    );
+    return {
+      items: data.rows.slice(0, pageLimit),
+      page: filters.page,
+      pageSize: filters.pageSize,
+      total: Math.min(count.rows[0]?.total ?? 0, MAX_VISIBLE_RESULTS),
+    };
   }
 
-  async search(query: string, limit = 20): Promise<Listing[]> {
+  async search(filters: ListingSearchFilters): Promise<Listing[]> {
+    const { predicate, values, rank } = buildPredicate(filters);
+    const limit = Math.min(filters.limit, MAX_VISIBLE_RESULTS);
+    const queryValues = [...values, limit];
     const result = await this.run<Listing>(
-      `SELECT ${COLUMNS} FROM compass.listings_synced
-      WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' ||
-        coalesce(neighborhood,'') || ' ' || coalesce(amenities,'')) @@ websearch_to_tsquery('english', $1)
-      ORDER BY ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' ||
-        coalesce(neighborhood,'') || ' ' || coalesce(amenities,'')), websearch_to_tsquery('english', $1)) DESC,
-        listing_id LIMIT $2`,
-      [query, Math.min(Math.max(limit, 1), 100)]
+      `SELECT ${COLUMNS} FROM compass.listings_synced ${predicate}
+      ORDER BY ${rank}listing_id LIMIT $${queryValues.length}`,
+      queryValues
     );
-    return result.rows;
+    return result.rows.slice(0, limit);
   }
 }

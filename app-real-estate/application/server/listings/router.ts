@@ -1,7 +1,7 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { ListingService, ListingTimeoutError, ListingUnavailableError } from './service.js';
-import { listingFiltersSchema } from './types.js';
+import { listingFiltersSchema, listingSearchSchema } from './types.js';
 
 export function createListingsRouter(service: ListingService): Router {
   const router = Router();
@@ -14,10 +14,8 @@ export function createListingsRouter(service: ListingService): Router {
   });
   router.get('/search', async (req, res) => {
     try {
-      const input = z
-        .object({ q: z.string().trim().min(1), limit: z.coerce.number().int().min(1).max(100).default(20) })
-        .parse(req.query);
-      res.json({ items: await service.search(input.q, input.limit) });
+      const input = listingSearchSchema.parse(req.query);
+      res.json({ items: await service.search(input) });
     } catch (error) {
       sendError(res, error);
     }

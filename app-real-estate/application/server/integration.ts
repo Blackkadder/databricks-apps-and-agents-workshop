@@ -1,11 +1,6 @@
 import { Plugin, toPlugin, type PluginManifest } from '@databricks/appkit';
 import { configureListingRepository } from './agent/repository-registry.js';
-import type {
-  Listing as AgentListing,
-  ListingRepository,
-  SearchConstraints,
-  SearchResult,
-} from './agent/types.js';
+import type { Listing as AgentListing, ListingRepository, SearchConstraints, SearchResult } from './agent/types.js';
 import { createListingsRouter } from './listings/router.js';
 import { ListingService, type QueryClient, type QueryResult } from './listings/service.js';
 import type { Listing as StoredListing } from './listings/types.js';
@@ -81,8 +76,7 @@ class LakebaseListingRepository implements ListingRepository {
     if (constraints.amenities?.length) {
       for (const amenity of constraints.amenities) add('amenities ILIKE', `%${amenity}%`);
     }
-    const hasStructuredConstraints = clauses.length > 0;
-    if (constraints.query && !hasStructuredConstraints) {
+    if (constraints.query) {
       values.push(constraints.query);
       clauses.push(`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' ||
         coalesce(neighborhood,'') || ' ' || coalesce(amenities,'')) @@ websearch_to_tsquery('english', $${values.length})`);
@@ -109,7 +103,9 @@ class LakebaseListingRepository implements ListingRepository {
 
   async health(): Promise<{ ok: boolean; detail?: string }> {
     try {
-      const result = await database.query<{ count: number }>('SELECT count(*)::int AS count FROM compass.listings_synced');
+      const result = await database.query<{ count: number }>(
+        'SELECT count(*)::int AS count FROM compass.listings_synced'
+      );
       return { ok: result.rows[0]?.count === 600, detail: `${result.rows[0]?.count ?? 0} listings available` };
     } catch (error) {
       return { ok: false, detail: error instanceof Error ? error.message : 'Lakebase unavailable' };
