@@ -30,7 +30,8 @@ export function createListingsRouter(service: ListingService): Router {
           .regex(/^RE-\d{4}$/)
           .parse(req.params.listingId)
       );
-      item ? res.json(item) : res.status(404).json({ code: 'NOT_FOUND' });
+      if (item) res.json(item);
+      else res.status(404).json({ code: 'NOT_FOUND' });
     } catch (error) {
       sendError(res, error);
     }
