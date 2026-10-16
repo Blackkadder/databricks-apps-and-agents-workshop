@@ -36,11 +36,15 @@ databricks bundle deploy --var="genie_space_id=$DATABRICKS_GENIE_SPACE_ID" -p fe
 
 The bundle grants the app identity `CAN_RUN` on the space. AppKit receives the
 ID from the `genie-space` resource as `DATABRICKS_GENIE_SPACE_ID`; browser code
-must use the `/api/genie` proxy and must never receive the raw ID or credentials.
-AppKit runs Genie on behalf of the signed-in user, so each demo user separately
-needs `USE CATALOG` on `hackathon_prep`, `USE SCHEMA` on `compass`, and `SELECT`
-on `listings`. Grant access to a dedicated demo group rather than broad account
-groups.
+must use the application's `/api/home-advisor` contract and must never receive
+the raw ID or credentials. That route calls AppKit Genie programmatically as the
+app service principal, so grant that identity only `USE CATALOG` on the configured
+catalog, `USE SCHEMA` on the configured schema, and `SELECT` on `listings`.
+
+The built-in `/api/genie` routes execute on behalf of the signed-in user. If they
+are exposed for diagnostics, each user separately needs the same Unity Catalog
+grants through a dedicated demo group. The bundle declares the `genie` user API
+scope so the OBO route can receive the required forwarded credential.
 
 ## Evaluation and observability
 
