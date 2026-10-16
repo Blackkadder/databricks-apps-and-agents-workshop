@@ -1,0 +1,233 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "home-listings-sample-01",
+        "question": ["Find active Park Slope listings under $1 million with outdoor space"]
+      },
+      {
+        "id": "home-listings-sample-02",
+        "question": ["Compare the five best-value three-bedroom listings with parking"]
+      },
+      { "id": "home-listings-sample-03", "question": ["Summarize listing count and median price by neighborhood"] }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "{{TABLE_IDENTIFIER}}",
+        "description": [
+          "One row per synthetic property listing. listing_id is the stable unique identifier. This is demonstration data, not live MLS inventory."
+        ],
+        "column_configs": [
+          {
+            "column_name": "listing_id",
+            "description": ["Stable synthetic listing identifier; include it for every listing-specific result."],
+            "synonyms": ["listing ID", "property ID"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "price",
+            "description": ["Synthetic asking price in US dollars."],
+            "synonyms": ["asking price", "budget"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "square_feet",
+            "description": ["Interior area in square feet."],
+            "synonyms": ["sq ft", "size"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "price_per_sqft",
+            "description": ["Price divided by square_feet, in US dollars per square foot."],
+            "synonyms": ["price per square foot", "value"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "neighborhood",
+            "description": [
+              "Synthetic New York neighborhood; controlled values are Riverside, Park Slope, Astoria, Long Island City, and Harlem."
+            ],
+            "synonyms": ["area", "location"],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "property_type",
+            "description": ["Controlled values: condo, townhouse, co-op, single-family."],
+            "synonyms": ["home type", "listing type"],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "status",
+            "description": ["Controlled values: active and coming-soon."],
+            "synonyms": ["availability"],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "amenities",
+            "description": ["Pipe-delimited synthetic amenity names."],
+            "synonyms": ["features"],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "latitude",
+            "description": ["WGS84 latitude in decimal degrees for proximity and map display."],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "longitude",
+            "description": ["WGS84 longitude in decimal degrees for proximity and map display."],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "walk_score",
+            "description": ["Synthetic integer score from 0 to 100; higher means more walkable."],
+            "synonyms": ["walkability"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "transit_score",
+            "description": ["Synthetic integer score from 0 to 100; higher means better transit access."],
+            "synonyms": ["public transit score"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "listed_at",
+            "description": ["Synthetic listing date."],
+            "synonyms": ["listed date"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "has_outdoor_space",
+            "description": ["True when synthetic amenities include a balcony, garden, or roof deck."],
+            "synonyms": ["outdoor space"],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "has_parking",
+            "description": ["True when synthetic amenities include parking or EV charging."],
+            "synonyms": ["parking"],
+            "enable_format_assistance": true
+          }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "home-listings-policy-01",
+        "content": [
+          "This agent analyzes synthetic demonstration listings, not live MLS inventory; disclose that fact in every answer. Use only {{TABLE_IDENTIFIER}}. Include listing_id for every listing-specific claim. Never invent, transform, or omit an ID. Apply all stated constraints exactly. If no row matches, say so and do not relax any constraint unless the user explicitly agrees; name every relaxed constraint. Use price_per_sqft for value comparisons and deterministic SQL for all numeric comparisons. Do not infer protected characteristics, neighborhood demographics, safety, school quality, or who should live somewhere. Refuse steering requests and offer objective alternatives such as price, size, property type, amenities, walk_score, and transit_score. Do not provide financial, legal, or fair-housing advice."
+        ]
+      }
+    ],
+    "example_question_sqls": [
+      {
+        "id": "home-listings-example-01",
+        "question": ["Find active Park Slope listings under $1 million with outdoor space"],
+        "sql": [
+          "SELECT listing_id, title, price, bedrooms, bathrooms, square_feet, neighborhood, latitude, longitude FROM {{TABLE_IDENTIFIER}} WHERE status = 'active' AND neighborhood = 'Park Slope' AND price <= 1000000 AND has_outdoor_space = true ORDER BY price, listing_id LIMIT 20"
+        ]
+      },
+      {
+        "id": "home-listings-example-02",
+        "question": ["Compare the five best-value listings with at least three bedrooms and parking"],
+        "sql": [
+          "SELECT listing_id, title, price, bedrooms, square_feet, price_per_sqft, neighborhood FROM {{TABLE_IDENTIFIER}} WHERE bedrooms >= 3 AND has_parking = true ORDER BY price_per_sqft, listing_id LIMIT 5"
+        ]
+      },
+      {
+        "id": "home-listings-example-03",
+        "question": ["Summarize listing count and median price by neighborhood"],
+        "sql": [
+          "SELECT neighborhood, COUNT(*) AS listing_count, percentile_approx(price, 0.5) AS median_price_usd FROM {{TABLE_IDENTIFIER}} GROUP BY neighborhood ORDER BY neighborhood"
+        ]
+      },
+      {
+        "id": "home-listings-example-04",
+        "question": ["Find the five listings closest to latitude 40.7447 and longitude -73.9485"],
+        "sql": [
+          "SELECT listing_id, title, latitude, longitude, 2 * 3958.7613 * ASIN(SQRT(POWER(SIN(RADIANS(latitude - 40.7447) / 2), 2) + COS(RADIANS(40.7447)) * COS(RADIANS(latitude)) * POWER(SIN(RADIANS(longitude - (-73.9485)) / 2), 2))) AS distance_miles FROM {{TABLE_IDENTIFIER}} ORDER BY distance_miles, listing_id LIMIT 5"
+        ]
+      },
+      {
+        "id": "home-listings-example-05",
+        "question": ["Find active five-bedroom listings under $300,000"],
+        "sql": [
+          "SELECT listing_id, title, price FROM {{TABLE_IDENTIFIER}} WHERE status = 'active' AND bedrooms >= 5 AND price <= 300000 ORDER BY price, listing_id LIMIT 20"
+        ]
+      }
+    ]
+  },
+  "benchmarks": {
+    "questions": [
+      {
+        "id": "home-listings-benchmark-01",
+        "question": ["Find active Park Slope listings under $1 million with outdoor space"],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT listing_id, title, price, bedrooms, bathrooms, square_feet, neighborhood, latitude, longitude FROM {{TABLE_IDENTIFIER}} WHERE status = 'active' AND neighborhood = 'Park Slope' AND price <= 1000000 AND has_outdoor_space = true ORDER BY price, listing_id LIMIT 20"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "home-listings-benchmark-02",
+        "question": ["Compare the five best-value listings with at least three bedrooms and parking"],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT listing_id, title, price, bedrooms, square_feet, price_per_sqft, neighborhood FROM {{TABLE_IDENTIFIER}} WHERE bedrooms >= 3 AND has_parking = true ORDER BY price_per_sqft, listing_id LIMIT 5"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "home-listings-benchmark-03",
+        "question": ["Summarize listing count and median price by neighborhood"],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT neighborhood, COUNT(*) AS listing_count, percentile_approx(price, 0.5) AS median_price_usd FROM {{TABLE_IDENTIFIER}} GROUP BY neighborhood ORDER BY neighborhood"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "home-listings-benchmark-04",
+        "question": ["Find the five listings closest to latitude 40.7447 and longitude -73.9485"],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT listing_id, title, latitude, longitude, 2 * 3958.7613 * ASIN(SQRT(POWER(SIN(RADIANS(latitude - 40.7447) / 2), 2) + COS(RADIANS(40.7447)) * COS(RADIANS(latitude)) * POWER(SIN(RADIANS(longitude - (-73.9485)) / 2), 2))) AS distance_miles FROM {{TABLE_IDENTIFIER}} ORDER BY distance_miles, listing_id LIMIT 5"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "home-listings-benchmark-05",
+        "question": ["Find active five-bedroom listings under $300,000"],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT listing_id, title, price FROM {{TABLE_IDENTIFIER}} WHERE status = 'active' AND bedrooms >= 5 AND price <= 300000 ORDER BY price, listing_id LIMIT 20"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

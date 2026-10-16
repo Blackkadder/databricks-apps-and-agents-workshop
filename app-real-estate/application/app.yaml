@@ -9,3 +9,5 @@ env:
     value: compass
   - name: UC_LISTINGS_TABLE
     value: hackathon_prep.compass.listings
+  - name: DATABRICKS_GENIE_SPACE_ID
+    valueFrom: genie-space

@@ -14,12 +14,14 @@ variables:
     description: Lakebase Autoscaling database resource name
   sql_warehouse_id:
     description: SQL warehouse used for Unity Catalog queries
+  genie_space_id:
+    description: Existing Home Listings Advisor Genie space ID
 
 resources:
   apps:
     app:
-      name: "real-estate-intelligence"
-      description: "A governed real-estate intelligence demo powered by AppKit"
+      name: 'real-estate-intelligence'
+      description: 'A governed real-estate intelligence demo powered by AppKit'
       source_code_path: ./
 
       # Start the app automatically on deploy.
@@ -40,6 +42,11 @@ resources:
           sql_warehouse:
             id: ${var.sql_warehouse_id}
             permission: CAN_USE
+        - name: genie-space
+          genie_space:
+            name: Home Listings Advisor
+            space_id: ${var.genie_space_id}
+            permission: CAN_RUN
 
 targets:
   default:
