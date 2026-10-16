@@ -23,6 +23,8 @@ resources:
       name: 'real-estate-intelligence'
       description: 'A governed real-estate intelligence demo powered by AppKit'
       source_code_path: ./
+      user_api_scopes:
+        - genie
 
       # Start the app automatically on deploy.
       lifecycle:
