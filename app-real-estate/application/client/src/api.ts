@@ -5,8 +5,12 @@ export type Listing = {
   latitude: number; longitude: number; description: string;
 };
 export type ListingFilters = { query: string; maxPrice: string; minBeds: string; propertyType: string };
-export type AdvisorMessage = { id: string; role: 'user' | 'assistant'; content: string; citations?: string[] };
-export type AdvisorResponse = { message: AdvisorMessage; listingIds: string[] };
+export type AdvisorCitation = { listingId: string; label?: string; snippet?: string; available?: boolean };
+export type AdvisorStatus = 'completed' | 'no_match' | 'cancelled' | 'failed';
+export type AdvisorErrorCode = 'TIMEOUT' | 'PERMISSION_DENIED' | 'RATE_LIMITED' | 'UNAVAILABLE' | 'MALFORMED_RESPONSE' | 'UNKNOWN';
+export type AdvisorMessage = { id: string; role: 'user' | 'assistant'; content: string; citations?: AdvisorCitation[]; status?: AdvisorStatus };
+export type AdvisorResponse = { message: AdvisorMessage; conversationId: string; messageId: string; mapAction?: { listingId: string } };
+export class AdvisorApiError extends Error { readonly code: AdvisorErrorCode; readonly retryable: boolean; constructor(code: AdvisorErrorCode, message: string, retryable: boolean) { super(message); this.name = 'AdvisorApiError'; this.code = code; this.retryable = retryable; } }
 
 type StoredListing = {
   listing_id: string; title: string; price: number; bedrooms: number; bathrooms: number;
@@ -15,7 +19,7 @@ type StoredListing = {
 };
 type ListingPage = { items: StoredListing[]; total: number; page: number; pageSize: number };
 export type ListingResult = { items: Listing[]; total: number };
-type AgentReply = { message: string; listingIds: string[]; sessionId: string };
+type AdvisorReply = { text: string; status: AdvisorStatus; citations: AdvisorCitation[]; conversationId: string; messageId: string; mapAction?: { listingId: string }; error?: { code: AdvisorErrorCode; message: string; retryable?: boolean } };
 
 const json = async <T>(response: Response): Promise<T> => {
   if (!response.ok) throw new Error(`Request failed (${response.status})`);
@@ -44,16 +48,27 @@ export const api = {
     return { items: result.items.slice(0, 100).map(toListing), total: result.total };
   },
   async advise(prompt: string, signal?: AbortSignal): Promise<AdvisorResponse> {
-    const reply = await json<AgentReply>(await fetch('/api/real-estate-agent/chat', {
+    const response = await fetch('/api/home-advisor/messages', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: prompt, sessionId }), signal,
-    }));
-    sessionId = reply.sessionId;
-    return { message: { id: crypto.randomUUID(), role: 'assistant', content: reply.message, citations: reply.listingIds }, listingIds: reply.listingIds };
+      body: JSON.stringify({ message: prompt, conversationId: sessionId }), signal,
+    });
+    const reply = await response.json() as AdvisorReply;
+    if (!response.ok || reply.error) throw new AdvisorApiError(reply.error?.code ?? 'UNKNOWN', reply.error?.message ?? `Request failed (${response.status})`, reply.error?.retryable ?? response.status >= 500);
+    sessionId = reply.conversationId;
+    return { message: { id: reply.messageId, role: 'assistant', content: reply.text, citations: reply.citations, status: reply.status }, conversationId: reply.conversationId, messageId: reply.messageId, mapAction: reply.mapAction };
+  },
+  async listing(listingId: string, signal?: AbortSignal): Promise<Listing | null> {
+    const response = await fetch(`/api/listings/${encodeURIComponent(listingId)}`, { signal });
+    if (response.status === 404) return null;
+    return toListing(await json<StoredListing>(response));
+  },
+  async cancel(messageId?: string): Promise<void> {
+    if (!sessionId) return;
+    await json<unknown>(await fetch('/api/home-advisor/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: sessionId, messageId }) }));
   },
   async reset(): Promise<void> {
-    if (sessionId) await fetch('/api/real-estate-agent/reset', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }),
+    if (sessionId) await fetch('/api/home-advisor/reset', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: sessionId }),
     });
     sessionId = undefined;
   },
