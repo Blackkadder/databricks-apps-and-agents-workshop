@@ -32,6 +32,14 @@ function stripUnverifiedCitations(message: string, verified: Set<string>): strin
   );
 }
 
+function answerFromMessage(event: Extract<GenieStreamEvent, { type: 'message_result' }>): string {
+  const attachmentAnswer = event.message.attachments
+    ?.map((attachment) => attachment.text?.content?.trim())
+    .filter((value): value is string => Boolean(value))
+    .join('\n\n');
+  return attachmentAnswer || event.message.content;
+}
+
 export class HomeAdvisorService {
   readonly alias: string;
   readonly timeoutMs: number;
@@ -82,7 +90,7 @@ export class HomeAdvisorService {
           if (!statuses.includes(event.status)) statuses.push(event.status);
         } else if (event.type === 'message_result') {
           if (event.message.error) throw new Error(event.message.error);
-          content = event.message.content;
+          content = answerFromMessage(event);
           candidateIds.push(...listingIdsFromText(content));
         } else if (event.type === 'query_result') {
           const ids = listingIdsFromQuery(event);

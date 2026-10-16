@@ -88,6 +88,27 @@ describe('HomeAdvisorService', () => {
     expect(reply.warnings).toContain('Results were limited to 100 listings.');
   });
 
+  test('uses the Genie text answer attachment instead of echoing the submitted question', async () => {
+    const { client } = clientFrom([
+      { type: 'message_start', conversationId: 'c', messageId: 'm', spaceId: 's' },
+      {
+        type: 'message_result',
+        message: {
+          content: 'User question: show a home',
+          status: 'COMPLETED',
+          attachments: [{ text: { content: 'The verified answer is [RE-0001].' } }],
+        },
+      },
+    ]);
+    const reply = await new HomeAdvisorService(
+      () => client,
+      () => new InMemoryListingRepository([sampleListing('RE-0001')])
+    ).chat('Show a home');
+
+    expect(reply.message).toBe('The verified answer is [RE-0001].');
+    expect(reply.listingIds).toEqual(['RE-0001']);
+  });
+
   test('blocks fair-housing steering before any Genie call and preserves the session', async () => {
     const { client, sendMessage } = clientFrom(normalEvents());
     const repository = new InMemoryListingRepository([sampleListing('RE-0001')]);

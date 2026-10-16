@@ -3,7 +3,15 @@ import type { Listing } from '../agent/types.js';
 export type GenieStreamEvent =
   | { type: 'message_start'; conversationId: string; messageId: string; spaceId: string }
   | { type: 'status'; status: string }
-  | { type: 'message_result'; message: { content: string; status: string; error?: string } }
+  | {
+      type: 'message_result';
+      message: {
+        content: string;
+        status: string;
+        attachments?: Array<{ text?: { content?: string } }>;
+        error?: string;
+      };
+    }
   | {
       type: 'query_result';
       attachmentId: string;
