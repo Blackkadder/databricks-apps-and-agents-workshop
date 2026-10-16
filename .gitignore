@@ -212,3 +212,8 @@ __marimo__/
 # Agent Workshop
 app.yaml
 .databricks/
+
+# Local agent and workshop state
+/.isaac/
+/INDEX.md
+/state.lock
