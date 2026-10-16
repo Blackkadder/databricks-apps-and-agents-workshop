@@ -19,7 +19,16 @@ type StoredListing = {
 };
 type ListingPage = { items: StoredListing[]; total: number; page: number; pageSize: number };
 export type ListingResult = { items: Listing[]; total: number };
-type AdvisorReply = { text: string; status: AdvisorStatus; citations: AdvisorCitation[]; conversationId: string; messageId: string; mapAction?: { listingId: string }; error?: { code: AdvisorErrorCode; message: string; retryable?: boolean } };
+type AdvisorReply = {
+  sessionId: string; conversationId?: string; messageId?: string; message: string;
+  citations: Array<AdvisorCitation & { title?: string }>;
+  actions?: Array<{ type: 'select_listing'; listingId: string }>;
+  guardrailTriggered?: boolean;
+};
+type AdvisorErrorReply = {
+  code?: string; message?: string; retryable?: boolean;
+  error?: { code?: string; message?: string; retryable?: boolean };
+};
 
 const json = async <T>(response: Response): Promise<T> => {
   if (!response.ok) throw new Error(`Request failed (${response.status})`);
@@ -37,6 +46,15 @@ const toListing = (item: StoredListing): Listing => ({
 });
 let sessionId: string | undefined;
 
+const advisorErrorCode = (code: string | undefined, status: number): AdvisorErrorCode => {
+  if (code?.includes('TIMEOUT') || status === 408 || status === 504) return 'TIMEOUT';
+  if (code?.includes('PERMISSION') || status === 401 || status === 403) return 'PERMISSION_DENIED';
+  if (code?.includes('RATE') || status === 429) return 'RATE_LIMITED';
+  if (code?.includes('INVALID') || code?.includes('VERIFICATION')) return 'MALFORMED_RESPONSE';
+  if (code?.includes('UNAVAILABLE') || code?.includes('CONFIGURED') || status >= 500) return 'UNAVAILABLE';
+  return 'UNKNOWN';
+};
+
 export const api = {
   async listings(filters: ListingFilters, signal?: AbortSignal): Promise<ListingResult> {
     const params = new URLSearchParams({ page: '1', pageSize: '100' });
@@ -48,14 +66,31 @@ export const api = {
     return { items: result.items.slice(0, 100).map(toListing), total: result.total };
   },
   async advise(prompt: string, signal?: AbortSignal): Promise<AdvisorResponse> {
-    const response = await fetch('/api/home-advisor/messages', {
+    const response = await fetch('/api/home-advisor/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: prompt, conversationId: sessionId }), signal,
+      body: JSON.stringify({ message: prompt, sessionId }), signal,
     });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({})) as AdvisorErrorReply;
+      const error = payload.error ?? payload;
+      throw new AdvisorApiError(advisorErrorCode(error.code, response.status), error.message ?? `Request failed (${response.status})`, error.retryable ?? response.status >= 500);
+    }
     const reply = await response.json() as AdvisorReply;
-    if (!response.ok || reply.error) throw new AdvisorApiError(reply.error?.code ?? 'UNKNOWN', reply.error?.message ?? `Request failed (${response.status})`, reply.error?.retryable ?? response.status >= 500);
-    sessionId = reply.conversationId;
-    return { message: { id: reply.messageId, role: 'assistant', content: reply.text, citations: reply.citations, status: reply.status }, conversationId: reply.conversationId, messageId: reply.messageId, mapAction: reply.mapAction };
+    sessionId = reply.sessionId;
+    const citations = reply.citations.map((citation) => ({
+      listingId: citation.listingId,
+      label: citation.label ?? citation.title,
+      snippet: citation.snippet,
+      available: citation.available,
+    }));
+    const messageId = reply.messageId ?? crypto.randomUUID();
+    const status: AdvisorStatus = /\b(no exact match|no match|no listings|none found)\b/i.test(reply.message) ? 'no_match' : 'completed';
+    return {
+      message: { id: messageId, role: 'assistant', content: reply.message, citations, status },
+      conversationId: reply.sessionId,
+      messageId,
+      mapAction: reply.actions?.[0] ? { listingId: reply.actions[0].listingId } : undefined,
+    };
   },
   async listing(listingId: string, signal?: AbortSignal): Promise<Listing | null> {
     const response = await fetch(`/api/listings/${encodeURIComponent(listingId)}`, { signal });
@@ -64,11 +99,12 @@ export const api = {
   },
   async cancel(messageId?: string): Promise<void> {
     if (!sessionId) return;
-    await json<unknown>(await fetch('/api/home-advisor/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: sessionId, messageId }) }));
+    void messageId;
+    await json<unknown>(await fetch('/api/home-advisor/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) }));
   },
   async reset(): Promise<void> {
     if (sessionId) await fetch('/api/home-advisor/reset', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: sessionId }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }),
     });
     sessionId = undefined;
   },
